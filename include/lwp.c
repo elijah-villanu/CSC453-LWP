@@ -5,8 +5,16 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
-// Global counter to track tid (non-zero 0 is NO_THREAD? on header)
+// Global counter to track tid
 static tid_t tid_count = 1; 
+
+// Calls the given function and with the given argument, then 
+// lwp_exit() with the return value
+static void lwp_wrap(lwpfun fun, void *arg) {
+    int rval;
+    rval = fun(arg);
+    lwp_exit(rval);
+}
 
 tid_t lwp_create(lwpfun function, void *argument) {
     // Determine soft limit (needed to determine stack size when mmaping)
@@ -26,28 +34,43 @@ tid_t lwp_create(lwpfun function, void *argument) {
 
     // mmap error checking
     if (stack==MAP_FAILED) {
-        // mmap cleanup
-        munmap(2);
         return NO_THREAD;
     }
 
     // initialize thread context
     thread t = calloc(1, sizeof(context));
+    // calloc error checking
+    if (!t) {
+        munmap(stack, stack_size);
+        return NO_THREAD;
+    }
+    
     t->stack = stack;
-    t->tid = tid_counter++;
+    t->tid = tid_count++;
     t->stacksize = stack_size;
     // Assuming 0 is an okay status (NEED TO CHECK)
     t->status = 0;
-    // Pointer to save floating point state
-    t->state.fxsave = ;
+    // Pointer to save floating point state (from fp.h)
+    t->state.fxsave = FPU_INIT;
 
     // Stack entries for rfiles to track stack pointer, program counter
     // types much match registers type (unsigned long)
-    unsigned long *sp =     
+    // sp points to top of stack
+    unsigned long *sp = (unsigned long *)((char *)stack + stack_size);    
 
-    
+    // return address for ret is one below top of stack
+    sp--;
+    sp[0] = (unsigned long)lwp_wrap;
+    sp[1] = 0;
+
+    // Set registers in thread's rfile
+    t->state.rbp = (unsigned long)(sp + 1);
+    t->state.rsp = (unsigned long)sp;
+    t->state.rdi = (unsigned long)function;
+    t->state.rsi = (unsigned long)argument;
 }
 
 void lwp_start() {
 
 }
+
