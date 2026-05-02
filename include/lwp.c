@@ -7,6 +7,9 @@
 
 // Global counter to track tid
 static tid_t tid_count = 1; 
+static thead current_t = NULL;
+static scheduler curr_scheduler = NULL;
+
 
 // Calls the given function and with the given argument, then 
 // lwp_exit() with the return value
@@ -28,6 +31,8 @@ tid_t lwp_create(lwpfun function, void *argument) {
     } else {
         stack_size = 1024 * 1024 * 8;   
     }
+    // Stack size of multiple page sizes
+    stack_size = (stack_size + page_size - 1) & ~(page_size - 1);
 
     // Initialize stack (copying mmap from assignment)
     void *stack = mmap(NULL, stack_size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1 ,0); 
@@ -68,6 +73,10 @@ tid_t lwp_create(lwpfun function, void *argument) {
     t->state.rsp = (unsigned long)sp;
     t->state.rdi = (unsigned long)function;
     t->state.rsi = (unsigned long)argument;
+
+    // Admit thread into scheduler
+    current_scheduler->admit(t);
+    return t->tid;
 }
 
 void lwp_start() {
