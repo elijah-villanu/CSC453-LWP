@@ -7,8 +7,8 @@
 
 // Global counter to track tid
 static tid_t tid_count = 1; 
-static thead current_t = NULL;
-static scheduler curr_scheduler = NULL;
+static thread current_t = NULL;
+static scheduler current_scheduler = NULL;
 
 
 // Calls the given function and with the given argument, then 
@@ -53,8 +53,7 @@ tid_t lwp_create(lwpfun function, void *argument) {
     t->stack = stack;
     t->tid = tid_count++;
     t->stacksize = stack_size;
-    // Assuming 0 is an okay status (NEED TO CHECK)
-    t->status = 0;
+    t->status = LWP_LIVE;
     // Pointer to save floating point state (from fp.h)
     t->state.fxsave = FPU_INIT;
 
@@ -79,7 +78,26 @@ tid_t lwp_create(lwpfun function, void *argument) {
     return t->tid;
 }
 
+// Starts LWP system
 void lwp_start() {
+    // Transform calling thread to LWP (essentially everything in create but use existing stack
+    current
+}
+
+void lwp_yield() {
+    //swap_rfil
+}
+
+void lwp_exit(int exitval) {
 
 }
+
+tid_t lwp_wait(int *status) {
+
+}
+
+tid_t lwp_gettid() {
+    return current_thread->tid;
+}
+
 
