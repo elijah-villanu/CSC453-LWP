@@ -80,7 +80,10 @@ tid_t lwp_create(lwpfun function, void *argument) {
 
 // Starts LWP system
 void lwp_start() {
-    // Transform calling thread to LWP (essentially everything in create but use existing stack
+    // Transform parent calling with LWP (thread variable) without stack
+    // create each thread (which admits them into scheduler)
+    // Invoke first thread to run determined by scheduler with lwp_yield
+
     current
 }
 
