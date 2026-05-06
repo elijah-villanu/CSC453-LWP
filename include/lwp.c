@@ -11,6 +11,41 @@ static tid_t tid_count = 1;
 static thread current_thread = NULL;
 static scheduler current_scheduler = NULL;
 
+// Queue to hold the terminated threads
+static thread term_head = NULL;
+static thread term_tail = NULL;
+
+// Queue to hold threads that are waiting for another thread to exit
+// Kind of like waitpid()
+static thread wait_head = NULL;
+static thread wait_tail = NULL;
+
+static void enqueue(thread *head, thread *tail, thread t) {
+	t->lib_one = NULL;
+
+	if (!(*head)) {
+		*head = t;
+	} else {
+		(*tail)->lib_one = t;
+	}
+	*tail = t;
+}
+
+static thread dequeue(thread *head, thread *tail) {
+	if (!(*head)) {
+		return NULL;	
+	}
+	thread chosen = *head;
+	*head = chosen->lib_one;
+	
+	// Queue is now empty
+	if (!(*head)) {
+		*tail = NULL;
+	}
+	chosen->lib_one = NULL;
+	return chosen;
+}
+
 
 // Calls the given function and with the given argument, then 
 // lwp_exit() with the return value
@@ -71,7 +106,7 @@ tid_t lwp_create(lwpfun function, void *argument) {
     unsigned long *sp = (unsigned long *)((char *)stack + stack_size);    
 
     // return address for ret is one below top of stack
-    sp--;
+    sp -= 2;
     sp[0] = (unsigned long)lwp_wrap;
     sp[1] = 0;
 
@@ -123,21 +158,46 @@ void lwp_yield() {
     thread next_thread = current_scheduler->next();
 
     if (!next_thread) {
-
-        // Do something with exit
+		exit(LWPTERMSTAT(current_thread->status));
     }
 
-    swap_rfiles(&current_thread->state, &next_thread->state);
-    current_thread = next_thread;
+	thread prev = current_thread;
+	current_thread = next_thread;
+    swap_rfiles(&prev->state, &next_thread->state);
 }
 
 void lwp_exit(int exitval) {
-
+	current_thread->status = MKTERMSTAT(LWP_TERM, exitval);
+	current_scheduler->remove(current_thread);
+	
+	// Basic flow I think
+	// 1. Check if anyone waiting to clean up a thread in the wait queue
+	// 2. Take them out of waiter queue
+	// 3. Attach the exiting thread onto them with exitted (in struct) 
+	// 4. Resume the thread
+	// 5. Otherwise if no thread in wait queue, add thread to term queue
+	
+	lwp_yield(); 
 }
 
 tid_t lwp_wait(int *status) {
+	// No threads terminated, and this is last existing thread
+	if (!term_head && current_scheduler->qlen() <= 1) {
+		return NO_THREAD;
+	} 
 
-	return NO_THREAD; // TEMP, REMOVE
+	// If no threads terminated yet, block until one does
+	if (!term_head) {
+		current_scheduler->remove(current_thread);
+		enqueue(&wait_head, &wait_tail, current_thread);
+		lwp_yield();	
+	}
+
+	thread oldest = dequeue(&term_head, &term_tail);
+	
+	// ...WIP...
+
+	return NO_THREAD; // TEMP, REMOVE	
 }
 
 tid_t lwp_gettid() {
@@ -193,5 +253,5 @@ void lwp_set_scheduler(scheduler sched) {
 }
 
 scheduler lwp_get_scheduler(void) {
-    return &current_scheduler;
+    return current_scheduler;
 }
