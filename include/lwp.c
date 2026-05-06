@@ -121,7 +121,14 @@ void lwp_start() {
 
 void lwp_yield() {
     thread next_thread = current_scheduler->next();
+
+    if (!next_thread) {
+
+        // Do something with exit
+    }
+
     swap_rfiles(&current_thread->state, &next_thread->state);
+    current_thread = next_thread;
 }
 
 void lwp_exit(int exitval) {
@@ -134,7 +141,26 @@ tid_t lwp_wait(int *status) {
 }
 
 tid_t lwp_gettid() {
+    if (!current_thread) {
+        return NO_THREAD;
+    }
+
     return current_thread->tid;
+}
+
+thread tid2thread(tid_t tid) {
+    scheduler tmp = current_scheduler;
+    thread next = tmp->next();
+    
+    // Loop through scheduled threads to find matching tid
+    while (next != NULL) {
+        if (next->tid == tid) {
+            return next;
+        }
+        next = tmp->next();
+    }
+
+    return NULL;
 }
 
 void lwp_set_scheduler(scheduler sched) {
