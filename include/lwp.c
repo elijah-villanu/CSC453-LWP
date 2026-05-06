@@ -4,6 +4,7 @@
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <unistd.h>
+#include "magic64.o"
 
 // Global counter to track tid
 static tid_t tid_count = 1; 
@@ -80,15 +81,34 @@ tid_t lwp_create(lwpfun function, void *argument) {
 
 // Starts LWP system
 void lwp_start() {
-    // Transform parent calling with LWP (thread variable) without stack
-    // create each thread (which admits them into scheduler)
+    // Transform calling process as a LWP (needed for lwp_yield) without stack
     // Invoke first thread to run determined by scheduler with lwp_yield
+    thread calling_thread = calloc(1, sizeof(context));
+    if (!calling_thread) {
+        return NO_THREAD;
+    }
+       
+    // Instead using already made stack
+    calling_thread->stack = NULL;
+    calling_thread->stacksize = 0;    
+    calling_thread->tid = tid_count++;
+    calling_thread->status = LWP_LIVE;
+    calling_thread->state.fxsave = FPU_INIT;
 
-    current
+    // swap r_files reads from CPU directly, already knows registers
+
+    // Admit into scheduler
+    current_scheduler->admit(calling_thread);
+
+    current_thread = calling_thread;
+
+    // Switch to first process in scheduler
+    lwp_yield();          
 }
 
 void lwp_yield() {
-    //swap_rfil
+    thread next_thread = current_scheduler->next();
+    swap_rfiles(current_thread->state, next_thread->state);
 }
 
 void lwp_exit(int exitval) {
@@ -102,5 +122,4 @@ tid_t lwp_wait(int *status) {
 tid_t lwp_gettid() {
     return current_thread->tid;
 }
-
 
