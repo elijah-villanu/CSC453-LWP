@@ -2,7 +2,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-// These variables will hold our data of our linked list, static so they will hold values after multiple calls
+// These variables will hold our data of our linked list,
+// static so they will hold values after multiple calls
 static thread head = NULL;
 static thread tail = NULL;
 static int qlen_count = 0;
@@ -56,7 +57,8 @@ static void rr_remove(thread victim) {
     }
 }
 
-// Returns the thread from the start of the queue, enqueues it until rr_remove completely removes it
+// Returns the thread from the start of the queue,
+// enqueues it until rr_remove completely removes it
 static thread rr_next() {
     // Queue empty
     if (!head || !tail) {

@@ -7,7 +7,7 @@
 
 // Global counter to track tid
 static tid_t tid_count = 1; 
-static thread current_t = NULL;
+static thread current_thread = NULL;
 static scheduler current_scheduler = NULL;
 
 
@@ -35,7 +35,14 @@ tid_t lwp_create(lwpfun function, void *argument) {
     stack_size = (stack_size + page_size - 1) & ~(page_size - 1);
 
     // Initialize stack (copying mmap from assignment)
-    void *stack = mmap(NULL, stack_size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1 ,0); 
+    void *stack = mmap(
+		NULL, 
+		stack_size, 
+		PROT_READ|PROT_WRITE, 
+		MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK,
+		-1,
+		0
+	); 
 
     // mmap error checking
     if (stack==MAP_FAILED) {
@@ -83,8 +90,6 @@ void lwp_start() {
     // Transform parent calling with LWP (thread variable) without stack
     // create each thread (which admits them into scheduler)
     // Invoke first thread to run determined by scheduler with lwp_yield
-
-    current
 }
 
 void lwp_yield() {
@@ -97,6 +102,7 @@ void lwp_exit(int exitval) {
 
 tid_t lwp_wait(int *status) {
 
+	return NO_THREAD; // TEMP, REMOVE
 }
 
 tid_t lwp_gettid() {
