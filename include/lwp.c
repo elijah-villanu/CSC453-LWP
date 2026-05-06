@@ -99,8 +99,7 @@ void lwp_start() {
     calling_thread->stacksize = 0;    
     calling_thread->tid = tid_count++;
     calling_thread->status = LWP_LIVE;
-    calling_thread->state.fxsave = FPU_INIT;
-
+    
     // swap r_files reads from CPU directly, already knows registers
 
     // Admit into scheduler
