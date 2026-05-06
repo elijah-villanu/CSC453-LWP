@@ -4,7 +4,6 @@
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <unistd.h>
-#include "magic64.o"
 
 // Global counter to track tid
 static tid_t tid_count = 1; 
@@ -92,7 +91,7 @@ void lwp_start() {
     // Invoke first thread to run determined by scheduler with lwp_yield
     thread calling_thread = calloc(1, sizeof(context));
     if (!calling_thread) {
-        return NO_THREAD;
+        return;
     }
        
     // Instead using already made stack
@@ -115,7 +114,7 @@ void lwp_start() {
 
 void lwp_yield() {
     thread next_thread = current_scheduler->next();
-    swap_rfiles(current_thread->state, next_thread->state);
+    swap_rfiles(&current_thread->state, &next_thread->state);
 }
 
 void lwp_exit(int exitval) {
