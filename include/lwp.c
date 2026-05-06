@@ -144,6 +144,11 @@ void lwp_set_scheduler(scheduler sched) {
         return;
     }
     
+    // If init function exists on new scheduler; call it
+    if (sched->init != NULL) {
+        sched->init();
+    }
+
     // Grab the first thread that was upcoming from old scheduler
     thread next = current_scheduler->next();
     // Loop until all previous threads are converted to new scheduler
@@ -151,6 +156,12 @@ void lwp_set_scheduler(scheduler sched) {
         sched->admit(next);
         next = current_scheduler->next();
     }
+
+    // If shutdown function exists on old scheduler; call it
+    if (current_scheduler->shutdown != NULL) {
+        current_scheduler->shutdown();
+    }
+
     // Change LWP to be running with new scheduler
     current_scheduler = sched;
 }
