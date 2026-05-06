@@ -4,6 +4,7 @@
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <unistd.h>
+#include <schedulers.h>
 
 // Global counter to track tid
 static tid_t tid_count = 1; 
@@ -80,6 +81,10 @@ tid_t lwp_create(lwpfun function, void *argument) {
     t->state.rdi = (unsigned long)function;
     t->state.rsi = (unsigned long)argument;
 
+    if (!current_scheduler) {
+        lwp_set_scheduler(NULL);
+    }
+
     // Admit thread into scheduler
     current_scheduler->admit(t);
     return t->tid;
@@ -91,7 +96,7 @@ void lwp_start() {
     // Invoke first thread to run determined by scheduler with lwp_yield
     thread calling_thread = calloc(1, sizeof(context));
     if (!calling_thread) {
-        return;
+        exit(3);
     }
        
     // Instead using already made stack
@@ -102,6 +107,9 @@ void lwp_start() {
     
     // swap r_files reads from CPU directly, already knows registers
 
+    if (!current_scheduler) {
+        lwp_set_scheduler(NULL);
+    }
     // Admit into scheduler
     current_scheduler->admit(calling_thread);
 
@@ -129,3 +137,24 @@ tid_t lwp_gettid() {
     return current_thread->tid;
 }
 
+void lwp_set_scheduler(scheduler sched) {
+    // If no scheduler provided, revert back to RoundRobin
+    if (!sched) {
+        current_scheduler = RoundRobin;
+        return;
+    }
+    
+    // Grab the first thread that was upcoming from old scheduler
+    thread next = current_scheduler->next();
+    // Loop until all previous threads are converted to new scheduler
+    while (next != NULL) {
+        sched->admit(next);
+        next = current_scheduler->next();
+    }
+    // Change LWP to be running with new scheduler
+    current_scheduler = sched;
+}
+
+scheduler lwp_get_scheduler(void) {
+    return &current_scheduler;
+}
