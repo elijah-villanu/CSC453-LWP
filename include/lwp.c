@@ -107,12 +107,11 @@ tid_t lwp_create(lwpfun function, void *argument) {
 
     // return address for ret is one below top of stack
     sp -= 2;
-    sp[0] = (unsigned long)lwp_wrap;
-    sp[1] = 0;
-
+    sp[0] = 0; 
+    sp[1] = (unsigned long)lwp_wrap;
     // Set registers in thread's rfile
-    t->state.rbp = (unsigned long)(sp + 1);
-    t->state.rsp = (unsigned long)sp;
+    t->state.rbp = (unsigned long)sp;
+    t->state.rsp = (unsigned long)(sp + 1);
     t->state.rdi = (unsigned long)function;
     t->state.rsi = (unsigned long)argument;
 
@@ -193,11 +192,14 @@ tid_t lwp_wait(int *status) {
 		lwp_yield();	
 	}
 
-	thread oldest = dequeue(&term_head, &term_tail);
-	
-	// ...WIP...
+	thread terminating = dequeue(&term_head, &term_tail);
+	tid_t terminating_tid = terminating->tid;
 
-	return NO_THREAD; // TEMP, REMOVE	
+	if (status) {
+		*status = terminating->status;
+	}
+	
+	return terminating_tid; 
 }
 
 tid_t lwp_gettid() {
