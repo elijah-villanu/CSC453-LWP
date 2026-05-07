@@ -169,6 +169,12 @@ void lwp_exit(int exitval) {
 	current_thread->status = MKTERMSTAT(LWP_TERM, exitval);
 	current_scheduler->remove(current_thread);
 	
+	if (wait_head) {
+		thread waiter = dequeue(&wait_head, &wait_tail);
+		current_thread->exited = waiter;// Verify this later
+		current_scheduler->admit(waiter); 		
+	}
+	enqueue(&term_head, &term_tail, current_thread);
 	// Basic flow I think
 	// 1. Check if anyone waiting to clean up a thread in the wait queue
 	// 2. Take them out of waiter queue
