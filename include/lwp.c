@@ -106,12 +106,12 @@ tid_t lwp_create(lwpfun function, void *argument) {
     unsigned long *sp = (unsigned long *)((char *)stack + stack_size);    
 
     // return address for ret is one below top of stack
-    sp -= 2;
+    sp -= 3;
     sp[0] = 0; 
     sp[1] = (unsigned long)lwp_wrap;
     // Set registers in thread's rfile
     t->state.rbp = (unsigned long)sp;
-    t->state.rsp = (unsigned long)(sp + 1);
+    t->state.rsp = (unsigned long)sp;
     t->state.rdi = (unsigned long)function;
     t->state.rsi = (unsigned long)argument;
 
@@ -185,19 +185,33 @@ tid_t lwp_wait(int *status) {
 		return NO_THREAD;
 	} 
 
+	thread terminating;
+
 	// If no threads terminated yet, block until one does
 	if (!term_head) {
 		current_scheduler->remove(current_thread);
 		enqueue(&wait_head, &wait_tail, current_thread);
-		lwp_yield();	
+		// Blocking here now
+		lwp_yield();
+		// Resumed
+		terminating = current_thread->exited;
+		current_thread->exited = NULL;
+	} else {
+		terminating = dequeue(&term_head, &term_tail);
 	}
 
-	thread terminating = dequeue(&term_head, &term_tail);
 	tid_t terminating_tid = terminating->tid;
 
 	if (status) {
 		*status = terminating->status;
 	}
+	
+	// Deallocate the stack
+	if (terminating->stack) {
+		munmap(terminating->stack, terminating->stacksize);
+	}
+
+	free(terminating);
 	
 	return terminating_tid; 
 }
