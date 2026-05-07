@@ -249,10 +249,23 @@ thread tid2thread(tid_t tid) {
 void lwp_set_scheduler(scheduler sched) {
     // If no scheduler provided, revert back to RoundRobin
     if (!sched) {
-        current_scheduler = RoundRobin;
-        return;
+        sched = RoundRobin;
     }
     
+	// If first time setting scheduler
+	if (!current_scheduler) {
+		if (sched->init != NULL) {
+			sched->init();
+		}
+		current_scheduler = sched;
+		return;
+	}
+
+	// Don't re-admit if same scheduler was provided
+	if (current_scheduler == sched) {
+		return;
+	}
+
     // If init function exists on new scheduler; call it
     if (sched->init != NULL) {
         sched->init();
@@ -262,6 +275,7 @@ void lwp_set_scheduler(scheduler sched) {
     thread next = current_scheduler->next();
     // Loop until all previous threads are converted to new scheduler
     while (next != NULL) {
+		current_scheduler->remove(next);
         sched->admit(next);
         next = current_scheduler->next();
     }
