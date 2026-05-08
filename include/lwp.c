@@ -20,7 +20,7 @@ static thread term_tail = NULL;
 static thread wait_head = NULL;
 static thread wait_tail = NULL;
 
-// These will store all the threads
+// These will store all the threads (running, terminated, or waiting)
 static thread threads_head = NULL;
 static thread threads_tail = NULL;
 
@@ -33,19 +33,6 @@ static void enqueue(thread *head, thread *tail, thread t) {
 		(*tail)->lib_one = t;
 	}
 	*tail = t;
-}
-
-// This will add threads into the queue containing ALL threads,
-// no matter if terminated or waiting
-static void all_threads_enqueue(thread t) {
-	t->lib_two = NULL;
-
-	if (!threads_head) {
-		threads_head = t;
-	} else {
-		threads_tail->lib_two = t;
-	}
-	threads_tail = t;
 }
 
 static thread dequeue(thread *head, thread *tail) {
@@ -63,26 +50,39 @@ static thread dequeue(thread *head, thread *tail) {
 	return chosen;
 }
 
-static void remove_from_queue(thread *head, thread *tail, thread t) {
-	if (!(*head)) {
+// For adding threads to global queue (running, terminated, or waiting)
+static void all_threads_enqueue(thread t) {
+	t->lib_two = NULL;
+
+	if (!threads_head) {
+		threads_head = t;
+	} else {
+		threads_tail->lib_two = t;
+	}
+	threads_tail = t;
+}
+
+// For removing threads from global queue (running, terminated, or waiting)
+static void all_threads_remove_one(thread t) {
+	if (threads_head) {
 		return;
 	}
 	
 	// If first thread was matching one
-	if (*head == t) {
-		*head = t->lib_two;
-		if (!(*head)) {
-			*tail = NULL;
+	if (threads_head == t) {
+		threads_head = t->lib_two;
+		if (!threads_head) {
+			threads_tail = NULL;
 		}
 		t->lib_two = NULL;
 		return;		
 	}
 	
-	thread curr = *head;
+	thread curr = threads_head;
 	while (curr->lib_two) {
 		if (curr->lib_two == t) {
-			if (t == *tail) {
-				*tail = curr;
+			if (t == threads_tail) {
+				threads_tail = curr;
 			}
 			curr->lib_two = t->lib_two;
 			t->lib_two = NULL;
@@ -90,7 +90,6 @@ static void remove_from_queue(thread *head, thread *tail, thread t) {
 		}
 		curr = curr->lib_two;
 	}
-		
 }
 
 // Calls the given function and with the given argument, then 
@@ -255,7 +254,7 @@ tid_t lwp_wait(int *status) {
 		*status = terminating->status;
 	}
 	
-	remove_from_queue(&threads_head, &threads_tail, terminating);	
+	all_threads_remove_one(terminating);	
 
 	// Deallocate the stack
 	if (terminating->stack) {
