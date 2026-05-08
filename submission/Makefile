@@ -14,7 +14,7 @@ HUNGRYOBJS = hungrysnakes.o
 
 NUMOBJS    = numbersmain.o
 
-OBJS	= $(SNAKEOBJS) $(HUNGRYOBJS) $(NUMOBJS) 
+OBJS	= $(SNAKEOBJS) $(HUNGRYOBJS) $(NUMOBJS) rr.o magic64.o util.o libLWP.a 
 
 SRCS	= randomsnakes.c numbersmain.c hungrysnakes.c
 
@@ -22,7 +22,7 @@ HDRS	=
 
 EXTRACLEAN = core $(PROGS)
 
-all: 	$(PROGS)
+all: libLWP.a
 
 allclean: clean
 	@rm -f $(EXTRACLEAN)
@@ -45,7 +45,7 @@ randomsnakes.o: lwp.h snakes.h
 
 numbermain.o: lwp.h
 
-libLWP.a: lwp.c rr.c util.c
+libLWP.a: lwp.c rr.c util.c magic64.S
 	gcc -c rr.c util.c lwp.c magic64.S 
 	ar r libLWP.a util.o lwp.o rr.o magic64.o
 	rm lwp.o
