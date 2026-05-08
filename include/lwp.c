@@ -20,6 +20,10 @@ static thread term_tail = NULL;
 static thread wait_head = NULL;
 static thread wait_tail = NULL;
 
+// These will store all the threads
+static thread threads_head = NULL;
+static thread threads_tail = NULL;
+
 static void enqueue(thread *head, thread *tail, thread t) {
 	t->lib_one = NULL;
 
@@ -29,6 +33,19 @@ static void enqueue(thread *head, thread *tail, thread t) {
 		(*tail)->lib_one = t;
 	}
 	*tail = t;
+}
+
+// This will add threads into the queue containing ALL threads,
+// no matter if terminated or waiting
+static void all_threads_enqueue(thread t) {
+	t->lib_two = NULL;
+
+	if (!threads_head) {
+		threads_head = t;
+	} else {
+		threads_tail->lib_two = t;
+	}
+	threads_tail = t;
 }
 
 static thread dequeue(thread *head, thread *tail) {
@@ -46,6 +63,35 @@ static thread dequeue(thread *head, thread *tail) {
 	return chosen;
 }
 
+static void remove_from_queue(thread *head, thread *tail, thread t) {
+	if (!(*head)) {
+		return;
+	}
+	
+	// If first thread was matching one
+	if (*head == t) {
+		*head = t->lib_two;
+		if (!(*head)) {
+			*tail = NULL;
+		}
+		t->lib_two = NULL;
+		return;		
+	}
+	
+	thread curr = *head;
+	while (curr->lib_two) {
+		if (curr->lib_two == t) {
+			if (t == *tail) {
+				*tail = curr;
+			}
+			curr->lib_two = t->lib_two;
+			t->lib_two = NULL;
+			return;
+		}
+		curr = curr->lib_two;
+	}
+		
+}
 
 // Calls the given function and with the given argument, then 
 // lwp_exit() with the return value
@@ -121,6 +167,7 @@ tid_t lwp_create(lwpfun function, void *argument) {
 
     // Admit thread into scheduler
     current_scheduler->admit(t);
+	all_threads_enqueue(t);
     return t->tid;
 }
 
@@ -148,6 +195,7 @@ void lwp_start() {
     current_scheduler->admit(calling_thread);
 
     current_thread = calling_thread;
+	all_threads_enqueue(current_thread);	
 
     // Switch to first process in scheduler
     lwp_yield();
@@ -176,12 +224,6 @@ void lwp_exit(int exitval) {
 	} else {
 		enqueue(&term_head, &term_tail, current_thread);
 	}
-	// Basic flow I think
-	// 1. Check if anyone waiting to clean up a thread in the wait queue
-	// 2. Take them out of waiter queue
-	// 3. Attach the exiting thread onto them with exitted (in struct) 
-	// 4. Resume the thread
-	// 5. Otherwise if no thread in wait queue, add thread to term queue
 	
 	lwp_yield(); 
 }
@@ -213,6 +255,8 @@ tid_t lwp_wait(int *status) {
 		*status = terminating->status;
 	}
 	
+	remove_from_queue(&threads_head, &threads_tail, terminating);	
+
 	// Deallocate the stack
 	if (terminating->stack) {
 		munmap(terminating->stack, terminating->stacksize);
@@ -232,15 +276,13 @@ tid_t lwp_gettid() {
 }
 
 thread tid2thread(tid_t tid) {
-    scheduler tmp = current_scheduler;
-    thread next = tmp->next();
-    
+	thread curr = threads_head;	
     // Loop through scheduled threads to find matching tid
-    while (next != NULL) {
-        if (next->tid == tid) {
-            return next;
+    while (curr != NULL) {
+        if (curr->tid == tid) {
+            return curr;
         }
-        next = tmp->next();
+		curr = curr->lib_two;
     }
 
     return NULL;
