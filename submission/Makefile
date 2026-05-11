@@ -22,13 +22,22 @@ HDRS	=
 
 EXTRACLEAN = core $(PROGS)
 
-all: libLWP.a
+all: libLWP.a $(PROGS)
 
 allclean: clean
 	@rm -f $(EXTRACLEAN)
 
 clean:	
 	rm -f $(OBJS) *~ TAGS
+
+hungrysnakes.o: hungrysnakes.c lwp.h snakes.h
+	$(CC) $(CFLAGS) -c hungrysnakes.c
+
+randomsnakes.o: randomsnakes.c lwp.h snakes.h
+	$(CC) $(CFLAGS) -c randomsnakes.c
+
+numbersmain.o: numbersmain.c lwp.h
+	$(CC) $(CFLAGS) -c numbersmain.c
 
 snakes: randomsnakes.o libLWP.a libsnakes.a
 	$(LD) $(LDFLAGS) -o snakes randomsnakes.o -L. -lncurses -lsnakes -lLWP
@@ -38,12 +47,6 @@ hungry: hungrysnakes.o libLWP.a libsnakes.a
 
 nums: numbersmain.o libLWP.a 
 	$(LD) $(LDFLAGS) -o nums numbersmain.o -L. -lLWP
-
-hungrysnakes.o: lwp.h snakes.h
-
-randomsnakes.o: lwp.h snakes.h
-
-numbermain.o: lwp.h
 
 libLWP.a: lwp.c rr.c util.c magic64.S
 	gcc -c rr.c util.c lwp.c magic64.S 
